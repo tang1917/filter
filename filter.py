@@ -10,12 +10,24 @@ import time
 
 
 #TRANS_X_STD = 0.5
-TRANS_X_STD = 2.0
+TRANS_X_STD = 1.0
 TRANS_Y_STD = 1.0
 #TRANS_S_STD = 0.001
-TRANS_S_STD = 0.001
+TRANS_Z_STD = 1.0
 SHOW_ALL = 0
 SHOW_SELECTED = 1
+
+MATRIX_B1 = np.asarray([[ 849.77075856,  -69.56167559, 2146.16636095, 1046.71992891],
+ [467.02973169,  -42.48548829, 1410.70732728,  400.2542614],
+ [0.8110194,    -0.06639029,    2.04698316,    1]]
+) 
+
+MATRIX_B3 = np.asarray([[ 888.00928246,  -82.68559324, 2895.21561849,  606.54730596],
+ [1045.53046359, -122.66897375, 4428.52498105,  -49.72861038],
+ [   1.67979024,   -0.1612126,     5.67332336,    1]])
+
+WIDTH = 100
+HEIGHT = 100
 
 A1 = 2.0
 A2 = -1.0
@@ -23,15 +35,13 @@ B0 = 1.0000
 
 
 class Particle(object):
-    def __init__(self, x=0, y=0, s=1.0, xp=0, yp=0, sp=1.0, x0=0, y0=0, width=0, height=0, w=0) -> None:
+    def __init__(self, x=0, y=0, z=0, xp=0, yp=0,zp=0,width=100,height=100, w=0) -> None:
         self.x = x
         self.y = y
-        self.s = s
+        self.z = z
         self.xp = xp
         self.yp = yp
-        self.sp = sp
-        self.x0 = x0
-        self.y0 = y0
+        self.zp = zp
         self.width = width
         self.height = height
         self.w = w
@@ -44,42 +54,36 @@ class ParticleFilter(object):
         self.n = 0
 
     '''粒子初始化'''
-    def initiate(self, tlbr):
+    def initiate(self, addr):
         particles = []
-        ret = np.asarray(tlbr)
-        ret[2:] = ret[2:]-ret[:2]
-        ret[:2] = ret[:2]+ret[2:]/2
-        x_ = ret[0]
-        y_ = ret[1]
-        width = ret[2]
-        height = ret[3]
-        particle = Particle(x_, y_, 1.0, x_, y_, 1.0, x_, y_, width, height)
+        x_ = addr[0]
+        y_ = addr[1]
+        z_ = addr[2]
+        particle = Particle(x_,y_,z_,x_, y_, z_)
         for i in range(self.numParticles):
             particles.append(particle)
         return particles
 
     def calTransition(self, p, w, h):
-        pn = Particle()
+        #pn = Particle()
+        '''
         x = A1*(p.x-p.x0) + A2*(p.xp-p.x0)+B0 * \
             np.random.normal(0, TRANS_X_STD) + p.x0
         y = A1*(p.y-p.y0) + A2*(p.yp-p.y0)+B0 * \
             np.random.normal(0, TRANS_Y_STD) + p.y0
         s = p.s + np.random.normal(0, TRANS_S_STD)
-
-        pn.x = max(0.0, min(w-1.0, x))
-        pn.y = max(0.0, min(h-1.0, y))
-        pn.s = max(0.95*p.s, min(s, 1.05*p.s))
-        pn.xp = p.x
-        pn.yp = p.y
-        pn.sp = p.s
-        pn.x0 = p.x0
-        pn.y0 = p.y0
-        #pn.width = p.width
-        pn.height = p.height
-        pn.width = p.width*pn.s
-        pn.height = p.height*pn.s
-        pn.w = 0
-        return pn
+        '''
+        x = p.x-p.xp + p.x + np.random.normal(0, TRANS_X_STD)
+        y = p.y-p.yp + p.y + np.random.normal(0, TRANS_Y_STD)
+        z = p.z-p.zp + p.z + np.random.normal(0, TRANS_Z_STD)
+        p.xp = p.x
+        p.yp = p.y
+        p.zp = p.z
+        p.x = x
+        p.y = y
+        p.z = z
+        p.w = 0
+        return p
 
     '''粒子传播'''
 
@@ -87,9 +91,9 @@ class ParticleFilter(object):
         for i in range(self.numParticles):
             particles[i] = self.calTransition(particles[i], w, h)
         return particles
+    
 
     '''获得粒子预测区域颜色直方图'''
-
     def colorHist(self, imgHSV, pl, h, w):
 
         '''
@@ -98,6 +102,14 @@ class ParticleFilter(object):
         s(0,255)
         v(0,255)
         '''
+        loc = np.asarray([pl.x,pl.y,pl.z]).astype(np.uint8)
+        twoLoc_1 = np.dot(MATRIX_B1,loc)
+        twoLoc_2 = np.dot(MATRIX_B3,loc)
+
+        twoLoc_1 = twoLoc_1/twoLoc_1[2]
+        twoLoc_2 = twoLoc_2/twoLoc_2[2]
+
+        
         t = max(0, int(pl.x-pl.width/2))
         l = max(0, int(pl.y-pl.height/2))
         b = min(w, int(pl.x+pl.width/2))
@@ -142,7 +154,6 @@ class ParticleFilter(object):
     def likelihood(self, img, pl, objecthist,h,w):
         hist = self.colorHist(img, pl,h,w)
         score = cv2.compareHist(hist,objecthist,cv2.HISTCMP_CORREL)
-        print('score=',score)
         return score
 
     '''更新粒子权重，并归一化'''

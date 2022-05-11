@@ -5,10 +5,56 @@ try:
     import scipy
     from scipy import stats
     import scipy.optimize as sco
+    import random
+    import copy
+    import numpy as np
+
 except :
     print("failed to import opencv, please install opencv-python by 'pip install opencv-python'")
     pass
 
+from test import read2DFile,read3DFile
+np.set_printoptions(suppress=True)
+
+threeDfilepath = r'E:\work\filter\airplane\b1b3.txt'
+twoDfilepath_B1 = r'E:\work\filter\airplane\data_b1.txt'
+twoDfilepath_B3 = r'E:\work\filter\airplane\data_b3.txt'
+allObject_points = read3DFile(threeDfilepath)
+allImage_points_B1 = read2DFile(twoDfilepath_B1)
+allImage_points_B3 = read2DFile(twoDfilepath_B3)
+
+def getindexs(num):
+    lis = list(range(num))
+    indexs = random.sample(lis,6)
+    return indexs
+def getPoints(allObject_points,allImage_points_B1,allImage_points_B3,indexs):
+    threeDSample = []
+    twoDSample_B1 = []
+    twoDSample_B3 = []
+    for i in indexs:
+        threeD = copy.deepcopy(allObject_points[i])
+        threeD.append(1)
+        twoD_B1 = copy.deepcopy(allImage_points_B1[i])
+        twoD_B1.append(1)
+        twoD_B3 = copy.deepcopy(allImage_points_B3[i])
+        twoD_B3.append(1)
+        threeDSample.append(threeD)
+        twoDSample_B1.append(twoD_B1)
+        twoDSample_B3.append(twoD_B3)
+    return threeDSample,twoDSample_B1,twoDSample_B3,indexs
+
+
+num = len(allObject_points)
+indexs = getindexs(num)
+indexs = [4, 2, 5, 11, 10, 19]
+print(indexs)
+print('%%%%%%%%%%%%%%%')
+threeDSample,twoDSample_B1,twoDSample_B3,indexs = \
+    getPoints(allObject_points,allImage_points_B1,allImage_points_B3,indexs)
+object_points = threeDSample
+image_points = twoDSample_B1
+#print('image_points=',image_points)
+'''
 object_points = [
         [-3.112418, 0.963687,0.773610,1],
         [-3.113543, 0.934069,0.772541,1],
@@ -26,10 +72,11 @@ image_points = [
         [507.000,813.000,1],
         [504.250,838.250,1]
     ]
-image_size = (3840,2160)
+'''
+
+#image_size = (3840,2160)
 # =========================================================== #
-import numpy as np
-np.set_printoptions(suppress=True)
+
 
 
 if len(object_points) != len(image_points):
@@ -50,13 +97,13 @@ XXT = X.dot(XT)
 XTXR = np.linalg.inv( XTX)
 
 M = np.dot(XTXR,objPoints.transpose()).dot(imgPoints)
-print("M matrix:(Direct Calculated)\n",M.transpose())
+#print("M matrix:(Direct Calculated)\n",M.transpose())
 
 P2 = objPoints.dot(M)
-print("P", imgPoints)
-print("P2", P2)
+#print("P", imgPoints)
+#print("P2", P2)
 
-print("average error:", np.sum(np.sqrt( np.sum((imgPoints - P2)**2,axis=1)))/len(object_points))
+#print("average error:", np.sum(np.sqrt( np.sum((imgPoints - P2)**2,axis=1)))/len(object_points))
 #def target_func(x, P, X):
 #    M = np.c_[x.reshape((4,2)),np.zeros(4)]
 #    M[3,2] = 1.0
@@ -92,40 +139,40 @@ from numpy.linalg import lstsq,solve
 from numpy.linalg import matrix_rank,det
 #print("parameter rank:", matrix_rank(a), " Det:", det(all_params))
 #b = np.zeros((all_params.shape[0],1))
-print("calculate matrix by first 11 rows. start.")
+#print("calculate matrix by first 11 rows. start.")
 x = solve(a,b)
-print(np.allclose(a.dot(x),b))
+#print(np.allclose(a.dot(x),b))
 #x=lstsq(a,b)
-print(x)
+#print(x)
 
 final_matrix = np.append(x,1.0)
 final_matrix = final_matrix.reshape((3,4))
-print("final matrix**:",final_matrix)
-print("final matrix:", final_matrix.reshape((4,3)))
+#print("final matrix**:",final_matrix)
+#print("final matrix:", final_matrix.reshape((4,3)))
 P2 = objPoints.dot(final_matrix.transpose())
 P2 = P2/P2[:,-1:np.newaxis]
-print("P", imgPoints)
-print("P2", P2)
+#print("P", imgPoints)
+#print("P2", P2)
 
-print("average error:", np.sum(np.sqrt( np.sum((imgPoints - P2)**2,axis=1)))/len(object_points))
+#print("average error:", np.sum(np.sqrt( np.sum((imgPoints - P2)**2,axis=1)))/len(object_points))
 
-print("calculate matrix by minimal error. start")
+#print("calculate matrix by minimal error. start")
 a = all_params[:,0:-1]
 b = -all_params[:,-1]
 x = lstsq(a,b)
 #x=lstsq(a,b)
-print(x[0])
+#print(x[0])
 
 final_matrix = np.append(x[0],1.0)
 final_matrix = final_matrix.reshape((3,4))
 print("final matrix***:",final_matrix)
-print("final matrix:", final_matrix.reshape((4,3)))
+#print("final matrix:", final_matrix.reshape((4,3)))
 P2 = objPoints.dot(final_matrix.transpose())
 P2 = P2/P2[:,-1:np.newaxis]
-print("P", imgPoints)
-print("P2", P2)
+#print("P", imgPoints)
+#print("P2", P2)
 error = np.sum(np.sqrt( np.sum((imgPoints - P2)**2,axis=1)))/len(object_points)
-print("average error:",error)
+#print("average error:",error)
 
-print("\n\n ====== final matrix ====== \n", final_matrix.reshape((4,3)))
-print("\n\n ====== final error  ====== \n", error)
+#print("\n\n ====== final matrix ====== \n", final_matrix.reshape((4,3)))
+#print("\n\n ====== final error  ====== \n", error)
